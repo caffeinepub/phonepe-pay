@@ -16,6 +16,8 @@ import {
   ChevronRight,
   Clock,
   Droplets,
+  Eye,
+  EyeOff,
   Flame,
   History,
   Home,
@@ -38,6 +40,7 @@ import type { Transaction } from "../backend.d";
 import {
   useAddMoney,
   useGetBalance,
+  useGetProfile,
   useGetTransactions,
   useMakePayment,
 } from "../hooks/useQueries";
@@ -55,7 +58,7 @@ interface DashboardScreenProps {
   onTabChange: (tab: "home" | "history" | "account") => void;
   onScanQR: () => void;
   onPaymentSuccess: (result: PaymentResult) => void;
-  onLockAccount: () => void;
+  onLockAccount?: () => void;
 }
 
 const quickActions = [
@@ -323,8 +326,17 @@ export default function DashboardScreen({
 }: DashboardScreenProps) {
   const { data: balance, isLoading: balanceLoading } = useGetBalance();
   const { data: transactions, isLoading: txLoading } = useGetTransactions();
+  const { data: profile } = useGetProfile();
   const makePayment = useMakePayment();
   const addMoney = useAddMoney();
+
+  const displayName = profile?.name || "Rahul Kumar";
+  const initials = displayName
+    .split(" ")
+    .map((w: string) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [addMoneyDialogOpen, setAddMoneyDialogOpen] = useState(false);
@@ -333,6 +345,7 @@ export default function DashboardScreen({
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [addAmount, setAddAmount] = useState("");
+  const [balanceVisible, setBalanceVisible] = useState(false);
 
   const handleSendMoney = async () => {
     if (!recipient.trim() || !amount.trim()) {
@@ -385,9 +398,9 @@ export default function DashboardScreen({
 
     try {
       await addMoney.mutateAsync({ amount: BigInt(amountNum) });
-      toast.success("Money added successfully!");
       setAddMoneyDialogOpen(false);
       setAddAmount("");
+      toast.success(`₹${amountNum.toLocaleString("en-IN")} added to wallet!`);
     } catch {
       toast.error("Failed to add money. Please try again.");
     }
@@ -438,25 +451,37 @@ export default function DashboardScreen({
 
       {/* Header */}
       <div
-        className="bg-pp-purple text-white px-5 pb-6 pt-3 shrink-0"
+        className="text-white px-5 pb-6 pt-3 shrink-0"
         style={{
+          background:
+            "linear-gradient(135deg, oklch(0.30 0.20 220) 0%, oklch(0.40 0.18 220) 100%)",
           borderBottomLeftRadius: "24px",
           borderBottomRightRadius: "24px",
         }}
       >
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-white/70 text-xs font-sans">Good Morning,</p>
-            <h1 className="text-white text-xl font-bold font-display tracking-tight">
-              Rahul
-            </h1>
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/assets/uploads/Screenshot_2026-03-02-02-05-02-552_com.android.vending-1-1.jpg"
+              alt="PhonePe"
+              className="w-7 h-7 rounded-lg object-contain shrink-0"
+            />
+            <div>
+              <p className="text-white/70 text-xs font-sans">Good Morning,</p>
+              <h1
+                className="text-base font-extrabold tracking-tight truncate max-w-[140px]"
+                style={{ color: "#00B9F1", fontFamily: "sans-serif" }}
+              >
+                {displayName}
+              </h1>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold font-display"
-              style={{ background: "oklch(0.52 0.20 307)" }}
+              style={{ background: "oklch(0.62 0.16 220)" }}
             >
-              R
+              {initials}
             </div>
           </div>
         </div>
@@ -464,16 +489,34 @@ export default function DashboardScreen({
         {/* Balance Card */}
         <div
           className="rounded-2xl p-4"
-          style={{ background: "oklch(0.32 0.20 307)" }}
+          style={{ background: "oklch(0.22 0.18 220)" }}
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white/60 text-xs mb-1">Wallet Balance</p>
+              <div className="flex items-center gap-1.5 mb-1">
+                <p className="text-white/60 text-xs">Wallet Balance</p>
+                <button
+                  type="button"
+                  onClick={() => setBalanceVisible((v) => !v)}
+                  className="text-white/50 hover:text-white/80 transition-colors"
+                  aria-label={balanceVisible ? "Hide balance" : "Show balance"}
+                >
+                  {balanceVisible ? (
+                    <EyeOff size={13} strokeWidth={2} />
+                  ) : (
+                    <Eye size={13} strokeWidth={2} />
+                  )}
+                </button>
+              </div>
               {balanceLoading ? (
                 <Skeleton className="h-7 w-32 bg-white/20" />
-              ) : (
+              ) : balanceVisible ? (
                 <p className="text-white text-2xl font-bold font-display rupee">
                   {balance !== undefined ? formatRupees(balance) : "₹0"}
+                </p>
+              ) : (
+                <p className="text-white text-2xl font-bold font-display tracking-widest">
+                  ₹ ••••
                 </p>
               )}
             </div>
@@ -533,7 +576,10 @@ export default function DashboardScreen({
                   onClick={onScanQR}
                   className="flex flex-col items-center gap-2 group"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-pp-purple flex items-center justify-center shadow-card group-hover:shadow-card-hover group-active:scale-95 transition-all duration-150">
+                  <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-card group-hover:shadow-card-hover group-active:scale-95 transition-all duration-150"
+                    style={{ background: "oklch(0.52 0.18 220)" }}
+                  >
                     <QrCode className="text-white" size={22} strokeWidth={2} />
                   </div>
                   <span className="text-[10px] text-gray-600 text-center leading-tight font-sans">
@@ -747,8 +793,37 @@ export default function DashboardScreen({
                   onChange={(e) => setAmount(e.target.value)}
                   className="rounded-xl border-gray-200 pl-7 focus:border-primary font-semibold text-lg"
                   min="1"
+                  autoFocus
                 />
               </div>
+              {/* Quick amount chips */}
+              <div className="flex gap-2 flex-wrap mt-2">
+                {[100, 200, 500, 1000, 2000, 5000].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setAmount(String(val))}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                      amount === String(val)
+                        ? "text-white border-blue-500"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600"
+                    }`}
+                    style={
+                      amount === String(val)
+                        ? {
+                            backgroundColor: "oklch(0.52 0.18 220)",
+                            borderColor: "oklch(0.52 0.18 220)",
+                          }
+                        : {}
+                    }
+                  >
+                    ₹{val >= 1000 ? `${val / 1000}K` : val}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-blue-500 font-medium">
+                ✓ Apni marzi se koi bhi amount daalo
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-gray-500 font-sans">
@@ -765,8 +840,8 @@ export default function DashboardScreen({
             <Button
               onClick={handleSendMoney}
               disabled={makePayment.isPending}
-              className="w-full rounded-xl h-12 bg-pp-purple text-white text-sm font-bold font-display hover:opacity-90 active:scale-[0.98] transition-all"
-              style={{ backgroundColor: "oklch(0.38 0.22 307)" }}
+              className="w-full rounded-xl h-12 text-white text-sm font-bold font-display hover:opacity-90 active:scale-[0.98] transition-all"
+              style={{ backgroundColor: "oklch(0.52 0.18 220)" }}
             >
               {makePayment.isPending ? (
                 <span className="flex items-center gap-2">
@@ -807,34 +882,46 @@ export default function DashboardScreen({
                   ₹
                 </span>
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   placeholder="0"
                   value={addAmount}
-                  onChange={(e) => setAddAmount(e.target.value)}
+                  onChange={(e) =>
+                    setAddAmount(e.target.value.replace(/[^0-9]/g, ""))
+                  }
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleAddMoney();
                   }}
                   className="rounded-xl border-gray-200 pl-7 focus:border-primary font-semibold text-lg"
-                  min="1"
                   autoFocus
                 />
               </div>
+              <p className="text-xs text-green-600 font-medium mt-1">
+                ✓ Enter any amount — no limit
+              </p>
             </div>
 
             {/* Quick amount chips */}
             <div className="flex gap-2 flex-wrap">
-              {[100, 500, 1000, 2000].map((preset) => (
+              {[
+                { value: 500, label: "₹500" },
+                { value: 1000, label: "₹1K" },
+                { value: 5000, label: "₹5K" },
+                { value: 10000, label: "₹10K" },
+                { value: 50000, label: "₹50K" },
+                { value: 100000, label: "₹1L" },
+              ].map(({ value, label }) => (
                 <button
-                  key={preset}
+                  key={value}
                   type="button"
-                  onClick={() => setAddAmount(String(preset))}
+                  onClick={() => setAddAmount(String(value))}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                    addAmount === String(preset)
+                    addAmount === String(value)
                       ? "bg-green-600 text-white border-green-600"
                       : "bg-white text-gray-600 border-gray-200 hover:border-green-400 hover:text-green-600"
                   }`}
                 >
-                  +₹{preset}
+                  +{label}
                 </button>
               ))}
             </div>
@@ -892,8 +979,11 @@ function BottomNav({ activeTab, onTabChange, onScanQR }: BottomNavProps) {
       <button
         type="button"
         onClick={onScanQR}
-        className="-mt-6 w-14 h-14 rounded-full bg-pp-purple shadow-lg flex items-center justify-center active:scale-95 transition-transform"
-        style={{ boxShadow: "0 4px 16px oklch(0.38 0.22 307 / 0.4)" }}
+        className="-mt-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        style={{
+          background: "oklch(0.52 0.18 220)",
+          boxShadow: "0 4px 16px oklch(0.52 0.18 220 / 0.4)",
+        }}
       >
         <QrCode className="text-white" size={22} strokeWidth={2} />
       </button>

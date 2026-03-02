@@ -1,5 +1,5 @@
-import { ArrowLeft, Flashlight, Image, X } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, CameraOff, Image, X, Zap, ZapOff } from "lucide-react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 interface QRScannerScreenProps {
@@ -8,18 +8,87 @@ interface QRScannerScreenProps {
 
 export default function QRScannerScreen({ onBack }: QRScannerScreenProps) {
   const [flashOn, setFlashOn] = useState(false);
+  const [cameraStatus, setCameraStatus] = useState<
+    "idle" | "requesting" | "granted" | "denied"
+  >("idle");
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFlashToggle = () => {
-    setFlashOn((prev) => !prev);
-    toast.info(flashOn ? "Flashlight off" : "Flashlight on");
+  useEffect(() => {
+    startCamera();
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
+  const startCamera = async () => {
+    setCameraStatus("requesting");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+      setCameraStatus("granted");
+    } catch (err) {
+      console.error("Camera error:", err);
+      setCameraStatus("denied");
+      toast.error(
+        "Camera access denied. Please allow camera in browser settings.",
+      );
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      for (const track of streamRef.current.getTracks()) {
+        track.stop();
+      }
+      streamRef.current = null;
+    }
+  };
+
+  const handleFlashToggle = async () => {
+    if (!streamRef.current) return;
+    const track = streamRef.current.getVideoTracks()[0];
+    if (!track) return;
+    try {
+      // @ts-ignore - torch is not in standard TS types yet
+      await track.applyConstraints({ advanced: [{ torch: !flashOn }] });
+      setFlashOn((prev) => !prev);
+      toast.info(!flashOn ? "Flashlight on" : "Flashlight off");
+    } catch {
+      toast.info("Torch not supported on this device");
+    }
   };
 
   const handleUploadGallery = () => {
-    toast.info("Gallery upload coming soon!");
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    toast.info(`Selected: ${file.name} — QR decode coming soon`);
+    // Reset input so same file can be re-selected
+    e.target.value = "";
   };
 
   return (
     <div className="h-full flex flex-col bg-black screen-enter">
+      {/* Hidden file input for gallery access */}
+      <input
+        type="file"
+        accept="image/*"
+        ref={fileInputRef}
+        onChange={handleFileSelected}
+        className="hidden"
+      />
       {/* Header */}
       <div className="bg-pp-purple flex items-center gap-4 px-4 py-4 shrink-0">
         <button
@@ -38,7 +107,9 @@ export default function QRScannerScreen({ onBack }: QRScannerScreenProps) {
       {/* Hint text */}
       <div className="bg-black py-4 text-center shrink-0">
         <p className="text-white/60 text-xs font-sans">
-          Position the QR code inside the frame to scan
+          {cameraStatus === "denied"
+            ? "Camera access denied. Please enable in browser settings."
+            : "Position the QR code inside the frame to scan"}
         </p>
       </div>
 
@@ -53,98 +124,78 @@ export default function QRScannerScreen({ onBack }: QRScannerScreenProps) {
             background: "rgba(20, 20, 25, 0.95)",
           }}
         >
-          {/* Dark camera viewfinder background */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            {/* Subtle grid */}
-            <div
-              className="absolute inset-0 opacity-5"
-              style={{
-                backgroundImage:
-                  "linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px)",
-                backgroundSize: "20px 20px",
-              }}
+          {/* Live camera feed */}
+          {cameraStatus === "granted" && (
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="absolute inset-0 w-full h-full object-cover"
             />
-          </div>
+          )}
+
+          {/* Denied / idle state */}
+          {cameraStatus === "denied" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+              <CameraOff className="text-white/40" size={48} />
+              <p className="text-white/50 text-xs text-center px-4 font-sans">
+                Camera access required
+              </p>
+              <button
+                type="button"
+                onClick={startCamera}
+                className="px-4 py-2 rounded-lg bg-pp-purple text-white text-xs font-semibold"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Requesting */}
+          {cameraStatus === "requesting" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+              <div className="w-10 h-10 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <p className="text-white/50 text-xs font-sans">
+                Requesting camera...
+              </p>
+            </div>
+          )}
+
+          {/* Dark overlay grid -- shown only when no camera */}
+          {cameraStatus !== "granted" && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="absolute inset-0 opacity-5"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px)",
+                  backgroundSize: "20px 20px",
+                }}
+              />
+            </div>
+          )}
 
           {/* Corner brackets */}
-          {/* Top-left */}
           <div className="absolute top-0 left-0 w-8 h-8 border-t-[3px] border-l-[3px] border-white rounded-tl-lg z-10" />
-          {/* Top-right */}
           <div className="absolute top-0 right-0 w-8 h-8 border-t-[3px] border-r-[3px] border-white rounded-tr-lg z-10" />
-          {/* Bottom-left */}
           <div className="absolute bottom-0 left-0 w-8 h-8 border-b-[3px] border-l-[3px] border-white rounded-bl-lg z-10" />
-          {/* Bottom-right */}
           <div className="absolute bottom-0 right-0 w-8 h-8 border-b-[3px] border-r-[3px] border-white rounded-br-lg z-10" />
 
-          {/* Animated scan line */}
-          <div className="scan-line z-20" style={{ left: 0, right: 0 }}>
-            <div
-              className="h-0.5 w-full"
-              style={{
-                background:
-                  "linear-gradient(90deg, transparent, oklch(0.65 0.20 250), oklch(0.75 0.22 220), oklch(0.65 0.20 250), transparent)",
-                boxShadow:
-                  "0 0 8px oklch(0.65 0.20 250 / 0.8), 0 0 20px oklch(0.65 0.20 250 / 0.4)",
-              }}
-            />
-          </div>
-
-          {/* QR code placeholder icon */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <svg
-              width="80"
-              height="80"
-              viewBox="0 0 100 100"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              opacity={0.15}
-              role="img"
-              aria-label="QR code placeholder"
-            >
-              <rect
-                x="10"
-                y="10"
-                width="30"
-                height="30"
-                rx="3"
-                stroke="white"
-                strokeWidth="3"
-                fill="none"
+          {/* Animated scan line (only when camera active) */}
+          {cameraStatus === "granted" && (
+            <div className="scan-line z-20" style={{ left: 0, right: 0 }}>
+              <div
+                className="h-0.5 w-full"
+                style={{
+                  background:
+                    "linear-gradient(90deg, transparent, oklch(0.65 0.20 250), oklch(0.75 0.22 220), oklch(0.65 0.20 250), transparent)",
+                  boxShadow:
+                    "0 0 8px oklch(0.65 0.20 250 / 0.8), 0 0 20px oklch(0.65 0.20 250 / 0.4)",
+                }}
               />
-              <rect x="18" y="18" width="14" height="14" fill="white" rx="1" />
-              <rect
-                x="60"
-                y="10"
-                width="30"
-                height="30"
-                rx="3"
-                stroke="white"
-                strokeWidth="3"
-                fill="none"
-              />
-              <rect x="68" y="18" width="14" height="14" fill="white" rx="1" />
-              <rect
-                x="10"
-                y="60"
-                width="30"
-                height="30"
-                rx="3"
-                stroke="white"
-                strokeWidth="3"
-                fill="none"
-              />
-              <rect x="18" y="68" width="14" height="14" fill="white" rx="1" />
-              <rect x="60" y="60" width="8" height="8" fill="white" rx="1" />
-              <rect x="72" y="60" width="8" height="8" fill="white" rx="1" />
-              <rect x="60" y="72" width="8" height="8" fill="white" rx="1" />
-              <rect x="72" y="72" width="18" height="18" fill="white" rx="1" />
-              <rect x="46" y="10" width="8" height="8" fill="white" rx="1" />
-              <rect x="46" y="24" width="8" height="8" fill="white" rx="1" />
-              <rect x="10" y="46" width="8" height="8" fill="white" rx="1" />
-              <rect x="24" y="46" width="8" height="8" fill="white" rx="1" />
-              <rect x="46" y="46" width="8" height="8" fill="white" rx="1" />
-            </svg>
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -158,7 +209,8 @@ export default function QRScannerScreen({ onBack }: QRScannerScreenProps) {
           <button
             type="button"
             onClick={handleFlashToggle}
-            className="flex flex-col items-center gap-2 group"
+            disabled={cameraStatus !== "granted"}
+            className="flex flex-col items-center gap-2 group disabled:opacity-40"
           >
             <div
               className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-200 ${
@@ -167,11 +219,11 @@ export default function QRScannerScreen({ onBack }: QRScannerScreenProps) {
                   : "bg-gray-100 group-hover:bg-gray-200"
               }`}
             >
-              <Flashlight
-                className={flashOn ? "text-yellow-600" : "text-gray-500"}
-                size={22}
-                strokeWidth={2}
-              />
+              {flashOn ? (
+                <Zap className="text-yellow-600" size={22} strokeWidth={2} />
+              ) : (
+                <ZapOff className="text-gray-500" size={22} strokeWidth={2} />
+              )}
             </div>
             <span className="text-xs text-gray-500 font-sans">
               {flashOn ? "Flash On" : "Flashlight"}

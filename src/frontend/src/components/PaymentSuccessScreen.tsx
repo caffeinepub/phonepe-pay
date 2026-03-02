@@ -1,11 +1,55 @@
 import { Button } from "@/components/ui/button";
 import { Check, Home, Share2 } from "lucide-react";
+import { useEffect } from "react";
 import type { PaymentResult } from "../App";
 import {
   formatRupees,
   formatTimestamp,
   formatTimestampTime,
 } from "../utils/formatters";
+
+function playPaytmSound() {
+  try {
+    const ctx = new (
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext
+    )();
+
+    const playTone = (
+      freq: number,
+      startTime: number,
+      duration: number,
+      gainVal: number,
+    ) => {
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + startTime);
+      gainNode.gain.setValueAtTime(0, ctx.currentTime + startTime);
+      gainNode.gain.linearRampToValueAtTime(
+        gainVal,
+        ctx.currentTime + startTime + 0.01,
+      );
+      gainNode.gain.exponentialRampToValueAtTime(
+        0.001,
+        ctx.currentTime + startTime + duration,
+      );
+      osc.start(ctx.currentTime + startTime);
+      osc.stop(ctx.currentTime + startTime + duration);
+    };
+
+    // Paytm-style success chime: ascending pleasant tones
+    playTone(523, 0.0, 0.18, 0.4); // C5
+    playTone(659, 0.15, 0.18, 0.4); // E5
+    playTone(784, 0.3, 0.18, 0.4); // G5
+    playTone(1047, 0.45, 0.35, 0.5); // C6 - final long note
+  } catch {
+    // Audio not supported, silently ignore
+  }
+}
 
 interface PaymentSuccessScreenProps {
   result: PaymentResult;
@@ -16,6 +60,14 @@ export default function PaymentSuccessScreen({
   result,
   onGoHome,
 }: PaymentSuccessScreenProps) {
+  useEffect(() => {
+    // Play Paytm-style success sound when screen mounts
+    const timer = setTimeout(() => {
+      playPaytmSound();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleViewDetails = () => {
     // In a full app, this would navigate to a transaction detail page
     // For now, show expanded details inline - already shown

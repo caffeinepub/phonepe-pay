@@ -24,11 +24,11 @@
   :root {
     --radius: 0.75rem;
 
-    /* PhonePe Purple: #5f259f => oklch ~0.38 0.22 307 */
-    --pp-purple: 0.38 0.22 307;
-    --pp-purple-light: 0.52 0.20 307;
-    --pp-purple-dark: 0.28 0.20 307;
-    --pp-purple-xlight: 0.92 0.06 307;
+    /* Paytm Blue: #00B9F1 => oklch ~0.72 0.18 220 */
+    --pp-purple: 0.52 0.18 220;
+    --pp-purple-light: 0.65 0.16 220;
+    --pp-purple-dark: 0.35 0.18 220;
+    --pp-purple-xlight: 0.92 0.06 220;
 
     /* Success green */
     --pp-success: 0.60 0.19 145;
@@ -48,32 +48,32 @@
     --card-foreground: 0.16 0 0;
     --popover: 1 0 0;
     --popover-foreground: 0.16 0 0;
-    --primary: 0.38 0.22 307;
+    --primary: 0.52 0.18 220;
     --primary-foreground: 1 0 0;
-    --secondary: 0.95 0.03 307;
-    --secondary-foreground: 0.38 0.22 307;
+    --secondary: 0.95 0.03 220;
+    --secondary-foreground: 0.52 0.18 220;
     --muted: 0.96 0 0;
     --muted-foreground: 0.52 0 0;
-    --accent: 0.95 0.03 307;
-    --accent-foreground: 0.38 0.22 307;
+    --accent: 0.95 0.03 220;
+    --accent-foreground: 0.52 0.18 220;
     --destructive: 0.577 0.245 27.325;
     --destructive-foreground: 0.985 0 0;
-    --border: 0.91 0.02 307;
-    --input: 0.91 0.02 307;
-    --ring: 0.38 0.22 307;
+    --border: 0.91 0.02 220;
+    --input: 0.91 0.02 220;
+    --ring: 0.52 0.18 220;
     --chart-1: 0.646 0.222 41.116;
     --chart-2: 0.6 0.118 184.704;
-    --chart-3: 0.38 0.22 307;
+    --chart-3: 0.52 0.18 220;
     --chart-4: 0.828 0.189 84.429;
     --chart-5: 0.769 0.188 70.08;
     --sidebar: 0.985 0 0;
     --sidebar-foreground: 0.145 0 0;
-    --sidebar-primary: 0.38 0.22 307;
+    --sidebar-primary: 0.52 0.18 220;
     --sidebar-primary-foreground: 1 0 0;
-    --sidebar-accent: 0.95 0.03 307;
-    --sidebar-accent-foreground: 0.38 0.22 307;
-    --sidebar-border: 0.91 0.02 307;
-    --sidebar-ring: 0.38 0.22 307;
+    --sidebar-accent: 0.95 0.03 220;
+    --sidebar-accent-foreground: 0.52 0.18 220;
+    --sidebar-border: 0.91 0.02 220;
+    --sidebar-ring: 0.52 0.18 220;
   }
 
   * {
@@ -136,7 +136,7 @@
     box-shadow:
       0 0 0 2px rgba(0, 0, 0, 0.08),
       0 0 0 8px rgba(0, 0, 0, 0.04),
-      0 25px 80px rgba(95, 37, 159, 0.25),
+      0 25px 80px rgba(0, 100, 200, 0.25),
       0 10px 30px rgba(0, 0, 0, 0.15);
     position: relative;
   }

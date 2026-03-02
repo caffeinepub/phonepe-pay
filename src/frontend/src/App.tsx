@@ -21,7 +21,7 @@ export interface PaymentResult {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("pin-lock");
+  const [screen, setScreen] = useState<Screen>("dashboard");
   const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(
     null,
   );
@@ -58,7 +58,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-purple-50 to-slate-200 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-slate-200 flex items-center justify-center p-4">
       <Toaster position="top-center" />
       <PhoneFrame>
         {screen === "pin-lock" && (

@@ -29,6 +29,16 @@ export default function PinLockScreen({ onUnlocked }: PinLockScreenProps) {
   const [isShaking, setIsShaking] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const dotsRef = useRef<HTMLDivElement>(null);
+  // Ref to hold the "create" PIN value so confirm step always reads the latest value
+  const createPinRef = useRef("");
+
+  // If backend is slow or stuck, auto-proceed to enter mode after 2 seconds
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setMode((prev) => (prev === "loading" ? "enter" : prev));
+    }, 2000);
+    return () => clearTimeout(timeout);
+  }, []);
 
   useEffect(() => {
     if (pinLoading) return;
@@ -64,10 +74,12 @@ export default function PinLockScreen({ onUnlocked }: PinLockScreenProps) {
 
         if (newPin.length === PIN_LENGTH) {
           if (mode === "create") {
+            // Store in ref so the confirm step always reads the fresh value
+            createPinRef.current = newPin;
             // Move to confirm step
             setTimeout(() => {
               setMode("confirm");
-              setPin(newPin); // keep createPin stored
+              setPin("");
             }, 200);
           } else if (mode === "enter") {
             // Verify
@@ -98,14 +110,16 @@ export default function PinLockScreen({ onUnlocked }: PinLockScreenProps) {
 
         if (newConfirm.length === PIN_LENGTH) {
           setTimeout(async () => {
-            if (newConfirm !== pin) {
+            if (newConfirm !== createPinRef.current) {
               triggerShake();
               setErrorMsg("PINs don't match. Try again.");
               setConfirmPin("");
               return;
             }
             try {
-              const ok = await setPinMutation.mutateAsync({ pin });
+              const ok = await setPinMutation.mutateAsync({
+                pin: createPinRef.current,
+              });
               if (ok) {
                 setIsSuccess(true);
                 setTimeout(() => onUnlocked(), 500);
@@ -147,7 +161,7 @@ export default function PinLockScreen({ onUnlocked }: PinLockScreenProps) {
 
   const title =
     mode === "loading"
-      ? "Loading..."
+      ? "Connecting..."
       : mode === "create"
         ? "Create PIN"
         : mode === "confirm"
@@ -166,24 +180,29 @@ export default function PinLockScreen({ onUnlocked }: PinLockScreenProps) {
       className="h-full flex flex-col items-center justify-between py-10 px-6"
       style={{
         background:
-          "linear-gradient(160deg, oklch(0.20 0.20 307) 0%, oklch(0.28 0.22 307) 50%, oklch(0.22 0.18 295) 100%)",
+          "linear-gradient(160deg, oklch(0.22 0.18 220) 0%, oklch(0.30 0.20 220) 50%, oklch(0.24 0.16 210) 100%)",
       }}
     >
       {/* Logo + Branding */}
       <div className="flex flex-col items-center gap-3 fade-in-up">
-        <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg"
+        <img
+          src="/assets/uploads/Screenshot_2026-03-02-02-05-02-552_com.android.vending-1-1.jpg"
+          alt="PhonePe"
+          className="w-16 h-16 rounded-2xl object-contain"
           style={{
-            background:
-              "linear-gradient(135deg, oklch(0.55 0.22 307), oklch(0.38 0.20 280))",
-            boxShadow: "0 8px 24px oklch(0.15 0.18 307 / 0.6)",
+            filter: "drop-shadow(0 8px 24px oklch(0.15 0.18 307 / 0.6))",
           }}
-        >
-          <span className="text-white text-3xl font-bold font-display">P</span>
-        </div>
+        />
         <div className="text-center">
-          <h1 className="text-white text-xl font-bold font-display tracking-tight">
-            PhonePe
+          <h1
+            className="text-2xl font-extrabold tracking-tight"
+            style={{
+              color: "#00B9F1",
+              fontFamily: "sans-serif",
+              letterSpacing: "-0.5px",
+            }}
+          >
+            Paytm
           </h1>
           <p className="text-white/50 text-xs font-sans mt-0.5">
             Secure Payments
@@ -222,7 +241,7 @@ export default function PinLockScreen({ onUnlocked }: PinLockScreenProps) {
                 }`}
                 style={
                   filled && !isSuccess
-                    ? { backgroundColor: "oklch(0.88 0.10 307)" }
+                    ? { backgroundColor: "oklch(0.88 0.10 220)" }
                     : {}
                 }
               />
@@ -273,8 +292,8 @@ export default function PinLockScreen({ onUnlocked }: PinLockScreenProps) {
                     disabled={isProcessing || isSuccess}
                     className="w-20 h-14 rounded-full flex flex-col items-center justify-center text-white hover:bg-white/10 active:scale-95 transition-all duration-150 disabled:opacity-40"
                     style={{
-                      background: "oklch(0.32 0.16 307 / 0.5)",
-                      border: "1px solid oklch(0.45 0.15 307 / 0.3)",
+                      background: "oklch(0.32 0.16 220 / 0.5)",
+                      border: "1px solid oklch(0.45 0.15 220 / 0.3)",
                     }}
                   >
                     <span className="text-xl font-semibold font-display leading-none">
@@ -306,26 +325,39 @@ export default function PinLockScreen({ onUnlocked }: PinLockScreenProps) {
 
       {/* Bottom hint */}
       <div
-        className="text-center fade-in-up"
+        className="text-center flex flex-col items-center gap-3 fade-in-up"
         style={{ animationDelay: "0.3s" }}
       >
         {mode === "enter" && (
-          <button
-            type="button"
-            className="text-white/40 text-xs font-sans hover:text-white/60 transition-colors"
-            onClick={() => {
-              setMode("create");
-              setPin("");
-              setConfirmPin("");
-              setErrorMsg("");
-            }}
-          >
-            Forgot PIN? Reset
-          </button>
+          <>
+            <button
+              type="button"
+              className="text-white/60 text-xs font-sans hover:text-white/80 transition-colors"
+              onClick={() => {
+                setMode("create");
+                setPin("");
+                setConfirmPin("");
+                setErrorMsg("");
+              }}
+            >
+              Forgot PIN? Reset
+            </button>
+            <button
+              type="button"
+              className="text-white/70 text-xs font-sans px-5 py-2 rounded-full hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-150"
+              style={{
+                border: "1px solid oklch(1 0 0 / 0.25)",
+                backdropFilter: "blur(4px)",
+              }}
+              onClick={() => onUnlocked()}
+            >
+              Skip / Enter without PIN
+            </button>
+          </>
         )}
         {(mode === "create" || mode === "confirm") && (
           <p className="text-white/30 text-xs font-sans">
-            PhonePe · Secure & Encrypted
+            Paytm · Secure & Encrypted
           </p>
         )}
       </div>
