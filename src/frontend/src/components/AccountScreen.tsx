@@ -8,6 +8,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Camera,
   Delete,
@@ -228,6 +229,7 @@ interface AccountScreenProps {
 }
 
 export default function AccountScreen(_props: AccountScreenProps) {
+  const queryClient = useQueryClient();
   const { data: profile, isLoading: profileLoading } = useGetProfile();
   const { data: balance, isLoading: balanceLoading } = useGetBalance();
   const updateProfile = useUpdateProfile();
@@ -275,19 +277,20 @@ export default function AccountScreen(_props: AccountScreenProps) {
       toast.error("Name cannot be empty");
       return;
     }
-    if (editPhone && !/^\d{10}$/.test(editPhone)) {
-      toast.error("Please enter a valid 10-digit mobile number");
-      return;
-    }
     try {
       await updateProfile.mutateAsync({
         name: editName.trim(),
         phone: editPhone.trim(),
       });
+
+      // Force immediate refetch so profile name updates everywhere instantly
+      await queryClient.refetchQueries({ queryKey: ["profile"] });
+
       toast.success("Profile updated successfully!");
       setEditProfileOpen(false);
-    } catch {
-      toast.error("Failed to update profile");
+    } catch (err) {
+      console.error("Profile update error:", err);
+      toast.error("Failed to update profile. Please try again.");
     }
   };
 
@@ -583,15 +586,14 @@ export default function AccountScreen(_props: AccountScreenProps) {
                   +91
                 </span>
                 <Input
-                  placeholder="10-digit number"
+                  placeholder="Mobile number"
                   value={editPhone}
                   onChange={(e) =>
-                    setEditPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
+                    setEditPhone(e.target.value.replace(/\D/g, ""))
                   }
                   className="rounded-xl border-gray-200 pl-10"
                   type="tel"
                   inputMode="numeric"
-                  maxLength={10}
                 />
               </div>
             </div>

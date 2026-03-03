@@ -9,6 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -324,6 +325,7 @@ export default function DashboardScreen({
   onPaymentSuccess,
   onLockAccount,
 }: DashboardScreenProps) {
+  const queryClient = useQueryClient();
   const { data: balance, isLoading: balanceLoading } = useGetBalance();
   const { data: transactions, isLoading: txLoading } = useGetTransactions();
   const { data: profile } = useGetProfile();
@@ -365,6 +367,12 @@ export default function DashboardScreen({
         recipient: recipient.trim(),
       });
 
+      // Force immediate refetch of balance and transactions
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["balance"] }),
+        queryClient.refetchQueries({ queryKey: ["transactions"] }),
+      ]);
+
       const now = BigInt(Date.now()) * BigInt(1_000_000);
       const txId = `TXN${Date.now().toString().slice(-9)}`;
 
@@ -390,7 +398,7 @@ export default function DashboardScreen({
       toast.error("Please enter an amount");
       return;
     }
-    const amountNum = Number.parseInt(addAmount, 10);
+    const amountNum = Math.floor(Number.parseFloat(addAmount));
     if (Number.isNaN(amountNum) || amountNum <= 0) {
       toast.error("Please enter a valid amount");
       return;
@@ -398,10 +406,18 @@ export default function DashboardScreen({
 
     try {
       await addMoney.mutateAsync({ amount: BigInt(amountNum) });
+
+      // Force immediate refetch so balance and history update instantly
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["balance"] }),
+        queryClient.refetchQueries({ queryKey: ["transactions"] }),
+      ]);
+
       setAddMoneyDialogOpen(false);
       setAddAmount("");
       toast.success(`₹${amountNum.toLocaleString("en-IN")} added to wallet!`);
-    } catch {
+    } catch (err) {
+      console.error("Add money error:", err);
       toast.error("Failed to add money. Please try again.");
     }
   };
@@ -733,13 +749,32 @@ export default function DashboardScreen({
               <h2 className="text-sm font-bold text-gray-800 font-display">
                 Transaction History
               </h2>
-              <div className="flex items-center gap-1">
-                <Wallet size={12} className="text-pp-purple" />
-                {!balanceLoading && balance !== undefined && (
-                  <span className="text-[10px] text-pp-purple font-semibold rupee">
-                    {formatRupees(balance)}
-                  </span>
-                )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await Promise.all([
+                      queryClient.refetchQueries({ queryKey: ["balance"] }),
+                      queryClient.refetchQueries({
+                        queryKey: ["transactions"],
+                      }),
+                    ]);
+                    toast.success("Refreshed!");
+                  }}
+                  className="flex items-center gap-1 text-pp-purple text-xs font-semibold hover:opacity-70 transition-opacity"
+                  aria-label="Refresh history"
+                >
+                  <RefreshCw size={12} />
+                  Refresh
+                </button>
+                <div className="flex items-center gap-1">
+                  <Wallet size={12} className="text-pp-purple" />
+                  {!balanceLoading && balance !== undefined && (
+                    <span className="text-[10px] text-pp-purple font-semibold rupee">
+                      {formatRupees(balance)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             <HistoryView transactions={transactions} isLoading={txLoading} />
